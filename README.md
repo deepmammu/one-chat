@@ -115,15 +115,84 @@ If you switch the default to MySQL, ensure the database exists and credentials a
 
 ## API Endpoints
 
-- `POST /api/auth/login` – Body: `{ email, password }` – returns `{ token, user }`
+- `POST /api/auth/login` – Body: `{ email, password }` → `{ token, user }`
 - `POST /api/auth/logout` – Header: `Authorization: Bearer <token>`
 - `GET /api/auth/me` – Header: `Authorization: Bearer <token>`
 - `GET /api/projects` – Header: `Authorization: Bearer <token>`
 - `GET /api/projects/{id}` – Header: `Authorization: Bearer <token>`
-- `GET /api/timesheets` – Query: `date`, `user_id` (optional)
-- `POST /api/timesheets` – Body: `{ date, user_id, project_id, hours, notes? }`
-- `PUT/PATCH /api/timesheets/{id}` – Partial update body allowed
+
+### Timesheets
+
+- `GET /api/timesheets`
+  - Query: `date` (YYYY-MM-DD), `employee_id`, `project_id` (all optional)
+  - Returns list (max 100)
+
+- `POST /api/timesheets`
+  - Body:
+    - `date` (required, YYYY-MM-DD)
+    - `employee_id` (required)
+    - `project_id` (optional)
+    - `billable_hours` (required, 0–9)
+    - `unbillable_hours` (optional, >= 0)
+    - `comment` (optional)
+  - Rules:
+    - Exactly one timesheet per `(date, employee_id)` (unique)
+    - Creates with `Status = open` by default
+  - Errors:
+    - 422 `{ "message": "timesheet already filled for YYYY-MM-DD" }`
+
+- `PATCH /api/timesheets/{id}`
+  - Body (partial allowed):
+    - `billable_hours` (0–9)
+    - `unbillable_hours` (>= 0)
+    - `comment`
+    - `status` (`open` | `closed`)
+    - `date`, `employee_id`, `project_id` (optional)
+  - Rules:
+    - Editing `billable_hours` is blocked when `Status = closed`
+  - Errors:
+    - 422 `{ "message": "timesheet closed for YYYY-MM-DD" }`
+
 - `DELETE /api/timesheets/{id}`
+
+Note: There is an end-of-day scheduler that automatically closes all open timesheets for the current day at `23:59` server time.
+
+### Tasks
+
+- `GET /api/tasks`
+  - Query: `employee_id`, `project_id`, `time_sheet_id` (optional)
+
+- `POST /api/tasks`
+  - Body:
+    - `employee_id` (required)
+    - `project_id` (required)
+    - `date` (required when `time_sheet_id` not provided)
+    - `time_sheet_id` (optional)
+    - `task_name` (required)
+    - `task_description` (optional)
+    - `task_mode` (optional; one of: `billable`, `unbillable`)
+    - For billable tasks: `billable_hours` (required, 0–9)
+    - For unbillable tasks: `unbillable_hours` (required, >= 0)
+  - Billable rules:
+    - Requires a timesheet for `(date, employee_id)` with `Billable_hours > 0`
+    - Day must be `Status = open`
+    - Total sum of task billable hours per `time_sheet_id` cannot exceed 9
+    - Errors:
+      - 422 `{ "message": "fill timesheet for YYYY-MM-DD" }`
+      - 422 `{ "message": "billing hours completed", "date": "YYYY-MM-DD" }`
+      - 422 `{ "message": "timesheet closed for YYYY-MM-DD" }`
+  - Unbillable rules:
+    - Requires the day’s timesheet to exist and have `Unbillable_hours > 0` (capacity)
+    - Sum of task `Unbillable_hours` must not exceed timesheet `Unbillable_hours`
+    - Errors:
+      - 422 `{ "message": "please fill unable_hours" }` (when timesheet unbillable capacity is missing/zero)
+      - 422 `{ "message": "unbillable hours completed", "date": "YYYY-MM-DD" }`
+
+- `PATCH /api/tasks/{id}`
+  - Body (partial allowed): `task_name`, `task_description`, `task_mode`, `billable_hours`, `unbillable_hours`, `project_id`, etc.
+  - Enforces the same daily caps/constraints as creation.
+
+- `DELETE /api/tasks/{id}`
 
 ## Environment variables
 
@@ -131,7 +200,7 @@ Set these to match your actual schema when provided.
 
 - User DB (used for login): `USER_DB_HOST`, `USER_DB_DATABASE`, `USER_DB_USERNAME`, `USER_DB_PASSWORD`, `USER_TABLE`, `USER_EMAIL_COLUMN`, `USER_PASSWORD_COLUMN`, `USER_NAME_COLUMN`.
 - Projects DB: `PROJECT_DB_HOST`, `PROJECT_DB_DATABASE`, `PROJECT_DB_USERNAME`, `PROJECT_DB_PASSWORD`, `PROJECTS_TABLE`, `PROJECTS_ID_COLUMN`.
-- Timesheet DB: `TIMESHEET_DB_HOST`, `TIMESHEET_DB_DATABASE`, `TIMESHEET_DB_USERNAME`, `TIMESHEET_DB_PASSWORD`, `TIMESHEETS_TABLE`, `TIMESHEETS_ID_COLUMN`, `TIMESHEETS_DATE_COLUMN`, `TIMESHEETS_USER_ID_COLUMN`, `TIMESHEETS_PROJECT_ID_COLUMN`, `TIMESHEETS_HOURS_COLUMN`, `TIMESHEETS_NOTES_COLUMN`.
+- Timesheet DB: `TIMESHEET_DB_HOST`, `TIMESHEET_DB_DATABASE`, `TIMESHEET_DB_USERNAME`, `TIMESHEET_DB_PASSWORD`, `TIMESHEETS_TABLE`, `TIMESHEETS_ID_COLUMN`, `TIMESHEETS_DATE_COLUMN`, `TIMESHEETS_EMPLOYEE_ID_COLUMN`, `TIMESHEETS_PROJECT_ID_COLUMN`, `TIMESHEETS_HOURS_COLUMN` (default `Billable_hours`), `TIMESHEETS_NOTES_COLUMN`.
 
 ## CORS
 
@@ -141,3 +210,137 @@ Configure origins in `.env` via `CORS_ALLOWED_ORIGINS`. For development, `*` is 
 
 - Authentication uses Sanctum personal access tokens. First login issues a token based on verifying credentials in `userdb`; a local `users` row is created/synchronized to hold the token relationship.
 - Project/timesheet controllers use the named connections `projectsdb` and `timesheetdb`. Once schemas are finalized, update the table/column environment variables or swap to Eloquent models if preferred.
+
+## Example requests (curl)
+
+Replace `YOUR_TOKEN` with the value returned by `POST /api/auth/login`.
+
+### Auth: Login
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "secret"
+  }'
+```
+
+### Timesheets: Create
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/timesheets \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2025-09-26",
+    "employee_id": 1001,
+    "billable_hours": 2,
+    "unbillable_hours": 1,
+    "comment": "Initial allocation"
+  }'
+```
+
+### Timesheets: Update (billable + unbillable)
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/timesheets/7004 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billable_hours": 4,
+    "unbillable_hours": 2,
+    "comment": "Adjusting allocations"
+  }'
+```
+
+### Tasks: Create (billable)
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/tasks \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employee_id": 1001,
+    "project_id": 101,
+    "date": "2025-09-26",
+    "task_name": "Feature work",
+    "task_mode": "billable",
+    "billable_hours": 2
+  }'
+```
+
+Expected billable errors:
+- `422 { "message": "fill timesheet for YYYY-MM-DD" }`
+- `422 { "message": "billing hours completed", "date": "YYYY-MM-DD" }`
+- `422 { "message": "timesheet closed for YYYY-MM-DD" }`
+
+### Tasks: Create (unbillable)
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/tasks \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "employee_id": 1001,
+    "project_id": 101,
+    "date": "2025-09-26",
+    "task_name": "Internal training",
+    "task_mode": "unbillable",
+    "unbillable_hours": 1
+  }'
+```
+
+Expected unbillable errors:
+- `422 { "message": "please fill unable_hours" }`
+- `422 { "message": "unbillable hours completed", "date": "YYYY-MM-DD" }`
+
+### Tasks: Update name/description
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/tasks/5004 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task_name": "Refactor components2",
+    "task_description": "Simplify props and extract hooks"
+  }'
+```
+
+### Tasks: Update billable hours
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/tasks/5004 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billable_hours": 1
+  }'
+```
+
+### Tasks: Update unbillable hours (task_mode must be unbillable)
+
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/tasks/5004 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task_mode": "unbillable",
+    "unbillable_hours": 2
+  }'
+```
+
+## Postman collection (optional)
+
+You can quickly generate a collection from these examples or import a minimal JSON like the following and adjust the `Authorization` header value:
+
+```json
+{
+  "info": { "name": "one-chat-api", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "item": [
+    { "name": "Auth: Login", "request": { "method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "url": "http://127.0.0.1:8000/api/auth/login", "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret\"\n}" } } },
+    { "name": "Timesheets: Create", "request": { "method": "POST", "header": [{"key": "Authorization", "value": "Bearer YOUR_TOKEN"},{"key": "Content-Type", "value": "application/json"}], "url": "http://127.0.0.1:8000/api/timesheets", "body": { "mode": "raw", "raw": "{\n  \"date\": \"2025-09-26\",\n  \"employee_id\": 1001,\n  \"billable_hours\": 2,\n  \"unbillable_hours\": 1,\n  \"comment\": \"Initial allocation\"\n}" } } },
+    { "name": "Tasks: Create (billable)", "request": { "method": "POST", "header": [{"key": "Authorization", "value": "Bearer YOUR_TOKEN"},{"key": "Content-Type", "value": "application/json"}], "url": "http://127.0.0.1:8000/api/tasks", "body": { "mode": "raw", "raw": "{\n  \"employee_id\": 1001,\n  \"project_id\": 101,\n  \"date\": \"2025-09-26\",\n  \"task_name\": \"Feature work\",\n  \"task_mode\": \"billable\",\n  \"billable_hours\": 2\n}" } } }
+  ]
+}
+```

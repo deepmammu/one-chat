@@ -19,7 +19,7 @@ class DemoTimesheetSeeder extends Seeder
                 'Date' => now()->toDateString(),
                 'Employee_id' => 1001,
                 'Project_Id' => 101,
-                'Billing_hours' => 6,
+                'Billable_hours' => 6,
                 'Comment' => 'Initial setup and design',
                 'created_at' => now(),
                 'updated_at' => now(),

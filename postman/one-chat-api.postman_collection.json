@@ -1,0 +1,177 @@
+{
+  "info": {
+    "name": "one-chat-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for one-chat-api endpoints (auth, projects, timesheets, tasks)."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "token", "value": "YOUR_TOKEN" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [ {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"secret\"\n}" }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "List Projects",
+          "request": {
+            "method": "GET",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/projects", "host": ["{{baseUrl}}"], "path": ["api", "projects"] }
+          }
+        },
+        {
+          "name": "Project Detail",
+          "request": {
+            "method": "GET",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/projects/101", "host": ["{{baseUrl}}"], "path": ["api", "projects", "101"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Timesheets",
+      "item": [
+        {
+          "name": "List Timesheets",
+          "request": {
+            "method": "GET",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": {
+              "raw": "{{baseUrl}}/api/timesheets?date=2025-09-26&employee_id=1001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "timesheets"],
+              "query": [
+                {"key": "date", "value": "2025-09-26"},
+                {"key": "employee_id", "value": "1001"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Timesheet",
+          "request": {
+            "method": "POST",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/timesheets", "host": ["{{baseUrl}}"], "path": ["api", "timesheets"] },
+            "body": { "mode": "raw", "raw": "{\n  \"date\": \"2025-09-26\",\n  \"employee_id\": 1001,\n  \"billable_hours\": 2,\n  \"unbillable_hours\": 1,\n  \"comment\": \"Initial allocation\"\n}" }
+          }
+        },
+        {
+          "name": "Update Timesheet",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/timesheets/7004", "host": ["{{baseUrl}}"], "path": ["api", "timesheets", "7004"] },
+            "body": { "mode": "raw", "raw": "{\n  \"billable_hours\": 4,\n  \"unbillable_hours\": 2,\n  \"comment\": \"Adjusting allocations\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Timesheet",
+          "request": {
+            "method": "DELETE",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/timesheets/7004", "host": ["{{baseUrl}}"], "path": ["api", "timesheets", "7004"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks?employee_id=1001&project_id=101", "host": ["{{baseUrl}}"], "path": ["api", "tasks"], "query": [{"key": "employee_id", "value": "1001"}, {"key": "project_id", "value": "101"}] }
+          }
+        },
+        {
+          "name": "Create Task (Billable)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"] },
+            "body": { "mode": "raw", "raw": "{\n  \"employee_id\": 1001,\n  \"project_id\": 101,\n  \"date\": \"2025-09-26\",\n  \"task_name\": \"Feature work\",\n  \"task_mode\": \"billable\",\n  \"billable_hours\": 2\n}" }
+          }
+        },
+        {
+          "name": "Create Task (Unbillable)",
+          "request": {
+            "method": "POST",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"] },
+            "body": { "mode": "raw", "raw": "{\n  \"employee_id\": 1001,\n  \"project_id\": 101,\n  \"date\": \"2025-09-26\",\n  \"task_name\": \"Internal training\",\n  \"task_mode\": \"unbillable\",\n  \"unbillable_hours\": 1\n}" }
+          }
+        },
+        {
+          "name": "Update Task Name/Description",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks/5004", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "5004"] },
+            "body": { "mode": "raw", "raw": "{\n  \"task_name\": \"Refactor components2\",\n  \"task_description\": \"Simplify props and extract hooks\"\n}" }
+          }
+        },
+        {
+          "name": "Update Task Billable Hours",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks/5004", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "5004"] },
+            "body": { "mode": "raw", "raw": "{\n  \"billable_hours\": 1\n}" }
+          }
+        },
+        {
+          "name": "Update Task Unbillable Hours (Requires task_mode=unbillable)",
+          "request": {
+            "method": "PATCH",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks/5004", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "5004"] },
+            "body": { "mode": "raw", "raw": "{\n  \"task_mode\": \"unbillable\",\n  \"unbillable_hours\": 2\n}" }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [ {"key": "Authorization", "value": "Bearer {{token}}"} ],
+            "url": { "raw": "{{baseUrl}}/api/tasks/5004", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "5004"] }
+          }
+        }
+      ]
+    }
+  ]
+}
