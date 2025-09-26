@@ -32,8 +32,7 @@
 ## Architecture
 ```mermaid
 flowchart TD
-    U[User
-(Chat UI)] -->|HTTP| API[Laravel API]
+    U[User (Chat UI)] -->|HTTP| API[Laravel API]
     API --> AUTH[Sanctum Auth]
     API --> CHAT[ChatbotController]
     CHAT --> PLAN[AiPlanner Service]
@@ -42,8 +41,8 @@ flowchart TD
     API --> PROJ[(projects db)]
 
     subgraph UI
-    CHAT_UI[chat.html]
-    LOGIN_UI[login.html]
+      CHAT_UI[chat.html]
+      LOGIN_UI[login.html]
     end
 
     U --> CHAT_UI
