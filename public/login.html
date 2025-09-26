@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login • one-chat</title>
+  <style>
+    body { font-family: system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:#0f172a; color:#e2e8f0; margin:0; }
+    .container { max-width: 420px; margin: 10vh auto; background:#111827; border:1px solid #1f2937; border-radius:12px; padding:28px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+    h1 { font-size: 20px; margin: 0 0 18px; }
+    label { display:block; font-size: 14px; margin: 12px 0 6px; color:#cbd5e1; }
+    input { width:100%; padding:12px 14px; border-radius:8px; border:1px solid #374151; background:#0b1220; color:#e5e7eb; }
+    button { margin-top: 18px; width:100%; padding:12px 14px; border-radius:10px; border:0; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; }
+    button:hover { background:#1d4ed8; }
+    .msg { margin-top:12px; font-size: 13px; color:#fca5a5; min-height: 1.2em; }
+    .hint { margin-top:18px; font-size: 12px; color:#94a3b8; }
+    a { color:#93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sign in</h1>
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="username" />
+
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+
+    <button id="loginBtn">Login</button>
+    <div class="msg" id="msg"></div>
+
+    <div class="hint">After login you'll be redirected to the <a href="/chat.html">Chatbot</a>.</div>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+
+    async function login() {
+      el('msg').textContent = '';
+      const email = el('email').value.trim();
+      const password = el('password').value;
+      if (!email || !password) { el('msg').textContent = 'Email and password are required.'; return; }
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          el('msg').textContent = (data && data.message) ? data.message : 'Login failed';
+          return;
+        }
+        if (data && data.token) {
+          localStorage.setItem('token', data.token);
+          window.location.href = '/chat.html';
+        } else {
+          el('msg').textContent = 'Unexpected response.';
+        }
+      } catch (e) {
+        el('msg').textContent = 'Network error. Check server logs.';
+      }
+    }
+
+    el('loginBtn').addEventListener('click', login);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+  </script>
+</body>
+</html>

@@ -43,6 +43,7 @@ class TaskController extends Controller
 
         // Define timesheet table helpers used below
         $timesheetTable = env('TIMESHEETS_TABLE', 'daily_timeSheet');
+        
         $tsIdCol = env('TIMESHEETS_ID_COLUMN', 'Time_sheet_id');
         $dateCol = env('TIMESHEETS_DATE_COLUMN', 'Date');
         $taskHoursCol = 'Billable_hours';
@@ -194,11 +195,6 @@ class TaskController extends Controller
         $modeCol = env('TASKS_MODE_COLUMN', 'Task_mode');
         $taskHoursCol = 'Billable_hours';
         $taskUnbillCol = 'Unbillable_hours';
-
-        // Timesheet helpers used for validations and syncing
-        $timesheetTable = env('TIMESHEETS_TABLE', 'daily_timeSheet');
-        $tsIdCol = env('TIMESHEETS_ID_COLUMN', 'Time_sheet_id');
-        $dateCol = env('TIMESHEETS_DATE_COLUMN', 'Date');
 
         // Accept "billable_hours" alias on update too
         if ($request->has('billable_hours') && !$request->has('billing_hours')) {

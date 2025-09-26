@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TimesheetController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\ChatbotController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
@@ -13,6 +14,9 @@ Route::prefix('auth')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
     });
 });
+
+// Public Chatbot endpoint: if not logged in, it will instruct to login; if logged in, it will act.
+Route::post('/chatbot', [ChatbotController::class, 'chat']);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Projects
@@ -31,3 +35,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::match(['put','patch'], '/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
 });
+

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chatbot • one-chat</title>
+  <style>
+    :root {
+      --bg:#0f172a; --panel:#0b1220; --muted:#94a3b8; --fg:#e2e8f0; --accent:#22c55e; --error:#ef4444; --line:#1f2937;
+    }
+    html,body { height:100%; }
+    body { margin:0; font-family: system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--fg); }
+    .app { max-width: 900px; margin: 0 auto; height:100%; display:flex; flex-direction: column; }
+    header { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content: space-between; background:#0b1120; position:sticky; top:0; z-index:1; }
+    .brand { font-weight: 700; letter-spacing:.3px; }
+    .actions { display:flex; gap:10px; }
+    .btn { padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--fg); cursor:pointer; }
+    .btn.primary { background:#2563eb; border-color:#1d4ed8; }
+    .btn.primary:hover { background:#1d4ed8; }
+    .btn.link { background:transparent; border-color:transparent; color:#93c5fd; text-decoration: underline; }
+    .notice { padding:10px 12px; background:#111827; border:1px dashed #334155; color:var(--muted); border-radius:10px; margin:10px 18px 0; }
+    main { flex:1; display:flex; flex-direction: column; padding: 12px 18px; gap: 10px; }
+    .messages { flex:1; overflow:auto; display:flex; flex-direction: column; gap:10px; padding:6px 0; }
+    .row { display:flex; gap:10px; align-items:flex-end; }
+    .msg { max-width: 70%; padding:10px 12px; border-radius: 12px; border:1px solid var(--line); line-height:1.35; white-space: pre-wrap; }
+    .user { justify-content: flex-end; }
+    .user .msg { background:#1e293b; }
+    .bot .msg { background:#0b1220; }
+    footer { display:flex; gap:10px; padding:14px 18px; border-top:1px solid var(--line); background:#0b1120; position:sticky; bottom:0; }
+    input[type=text] { flex:1; padding:12px 14px; background:#0b1220; border:1px solid var(--line); color:var(--fg); border-radius:12px; }
+    .disabled { opacity:.6; pointer-events:none; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">one-chat • Chatbot</div>
+      <div class="actions">
+        <button class="btn" id="logoutBtn" title="Clear token and logout">Logout</button>
+        <button class="btn primary" id="loginBtn" title="Go to login">Login</button>
+      </div>
+    </header>
+
+    <div class="notice" id="notice" hidden>
+      You are not logged in. The chatbot can greet you, but to fill timesheets and tasks please <a href="/login.html">login</a> first.
+    </div>
+
+    <main>
+      <div class="messages" id="messages"></div>
+    </main>
+
+    <footer>
+      <input type="text" id="input" placeholder="Say: Fill my timesheet with 4 billable and 2 unbillable hours for today" />
+      <button class="btn primary" id="sendBtn">Send</button>
+    </footer>
+  </div>
+
+  <script>
+    const els = (id) => document.getElementById(id);
+    const messagesEl = els('messages');
+    const inputEl = els('input');
+    const sendBtn = els('sendBtn');
+    const loginBtn = els('loginBtn');
+    const logoutBtn = els('logoutBtn');
+    const notice = els('notice');
+
+    function pushMsg(role, text) {
+      const row = document.createElement('div');
+      row.className = 'row ' + (role === 'user' ? 'user' : 'bot');
+      const bubble = document.createElement('div');
+      bubble.className = 'msg';
+      bubble.textContent = text;
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function token() { return localStorage.getItem('token'); }
+    function setLoggedInUI(isLogged) {
+      loginBtn.style.display = isLogged ? 'none' : 'inline-block';
+      logoutBtn.style.display = isLogged ? 'inline-block' : 'none';
+      notice.hidden = !!isLogged;
+      inputEl.disabled = !isLogged;
+      sendBtn.classList.toggle('disabled', !isLogged);
+    }
+
+    loginBtn.addEventListener('click', () => window.location.href = '/login.html');
+    logoutBtn.addEventListener('click', () => { localStorage.removeItem('token'); setLoggedInUI(false); pushMsg('bot', 'You are logged out. Please login to continue.'); });
+
+    async function send(message) {
+      if (!message.trim()) return;
+      pushMsg('user', message);
+      inputEl.value = '';
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token()) headers['Authorization'] = 'Bearer ' + token();
+        const res = await fetch('/api/chatbot', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          pushMsg('bot', data && data.reply ? data.reply : 'Something went wrong.');
+          return;
+        }
+        pushMsg('bot', data.reply || 'OK');
+        if (data.require_login) {
+          setLoggedInUI(false);
+        }
+      } catch (e) {
+        pushMsg('bot', 'Network error.');
+      }
+    }
+
+    sendBtn.addEventListener('click', () => {
+      if (!token()) { window.location.href = '/login.html'; return; }
+      send(inputEl.value);
+    });
+    inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { if (!token()) { window.location.href = '/login.html'; return; } send(inputEl.value); } });
+
+    // On load: show greeting and set UI state
+    (async function () {
+      setLoggedInUI(!!token());
+      // Ask for greeting
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token()) headers['Authorization'] = 'Bearer ' + token();
+        const res = await fetch('/api/chatbot', { method: 'POST', headers, body: JSON.stringify({ message: '' }) });
+        const data = await res.json();
+        pushMsg('bot', data.reply || 'Hello!');
+        if (data.require_login) setLoggedInUI(false);
+      } catch (e) {
+        // ignore
+      }
+    })();
+  </script>
+</body>
+</html>

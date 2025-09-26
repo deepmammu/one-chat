@@ -211,6 +211,20 @@ Configure origins in `.env` via `CORS_ALLOWED_ORIGINS`. For development, `*` is 
 - Authentication uses Sanctum personal access tokens. First login issues a token based on verifying credentials in `userdb`; a local `users` row is created/synchronized to hold the token relationship.
 - Project/timesheet controllers use the named connections `projectsdb` and `timesheetdb`. Once schemas are finalized, update the table/column environment variables or swap to Eloquent models if preferred.
 
+## Documentation
+
+- See `docs/AI_for_Organization.md` for an overview of functionality, deployment, AI techniques, architecture, technology stack, and innovation highlights.
+
+### Screenshots
+
+Login page
+
+![Login](docs/screenshots/login.png)
+
+Chatbot page
+
+![Chatbot](docs/screenshots/chatbot.png)
+
 ## Example requests (curl)
 
 Replace `YOUR_TOKEN` with the value returned by `POST /api/auth/login`.
