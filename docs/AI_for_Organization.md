@@ -31,7 +31,7 @@
 
 ## Architecture
 ```mermaid
-flowchart TD
+graph TD
     U[User (Chat UI)] -->|HTTP| API[Laravel API]
     API --> AUTH[Sanctum Auth]
     API --> CHAT[ChatbotController]

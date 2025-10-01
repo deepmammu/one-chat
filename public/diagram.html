@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture Diagram Export</title>
+  <style>
+    body { font-family: system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:#0f172a; color:#e2e8f0; margin:0; }
+    header { padding:14px 18px; border-bottom:1px solid #1f2937; background:#0b1120; display:flex; justify-content:space-between; align-items:center; }
+    main { padding:18px; display:grid; gap:12px; }
+    textarea { width:100%; height:200px; background:#0b1220; color:#e5e7eb; border:1px solid #1f2937; border-radius:10px; padding:12px; }
+    .actions { display:flex; gap:10px; }
+    button { padding:10px 14px; border-radius:10px; border:1px solid #1f2937; background:#2563eb; color:#fff; cursor:pointer; }
+    button.secondary { background:#0b1220; color:#93c5fd; }
+    #diagram { background:#0b1220; border:1px solid #1f2937; border-radius:12px; padding:16px; overflow:auto; }
+    .hint { color:#94a3b8; font-size:13px; }
+    .error { color:#fca5a5; font-size:13px; white-space:pre-wrap; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    let renderId = 0;
+    mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+    async function render() {
+      const code = document.getElementById('code').value;
+      const container = document.getElementById('diagram');
+      const errEl = document.getElementById('err');
+      errEl.textContent = '';
+      try {
+        // Validate first – throws on syntax error
+        mermaid.parse(code);
+        // Render with unique id each time
+        const id = 'diagram-svg-' + (++renderId);
+        const res = await mermaid.render(id, code);
+        container.innerHTML = res.svg;
+      } catch (e) {
+        errEl.textContent = 'Mermaid parse error:\n' + (e && e.str ? e.str : (e && e.message ? e.message : String(e)));
+        container.innerHTML = '';
+      }
+    }
+    async function downloadPng() {
+      const svgEl = document.querySelector('#diagram svg');
+      if (!svgEl) { alert('Render the diagram first.'); return; }
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const scale = 2; // crisp PNG
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0b1120';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'architecture.png';
+          a.click();
+        }, 'image/png');
+      };
+      img.src = url;
+    }
+    window.addEventListener('DOMContentLoaded', render);
+  </script>
+</head>
+<body>
+  <header>
+    <div>Architecture Diagram Export</div>
+    <div class="actions">
+      <button class="secondary" onclick="render()">Render</button>
+      <button onclick="downloadPng()">Download PNG</button>
+    </div>
+  </header>
+  <main>
+    <div class="hint">Edit if needed, then Render and Download PNG. Copy the PNG to <code>docs/screenshots/architecture.png</code> to embed in docs.</div>
+    <textarea id="code">%%{init: { 'theme': 'dark' }}%%
+flowchart TD
+  U["User (Chat UI)"] -->|HTTP| API["Laravel API"]
+  API --> AUTH["Sanctum Auth"]
+  API --> CHAT["ChatbotController"]
+  CHAT --> PLAN["AiPlanner Service"]
+  PLAN --> TS[(daily_timeSheet)]
+  PLAN --> TASK[(task_details)]
+  API --> PROJ[projects_db]
+
+  U --> CHAT_UI[chat.html]
+  U --> LOGIN_UI[login.html]
+  CHAT_UI -->|/api/chatbot| CHAT
+  LOGIN_UI -->|/api/auth/login| AUTH</textarea>
+    <div id="err" class="error"></div>
+    <div id="diagram"></div>
+  </main>
+</body>
+</html>
